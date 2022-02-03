@@ -1,0 +1,19 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: zookeeper-deploy
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: zookeeper-1
+  template:
+    metadata:
+      labels:
+        app: zookeeper-1
+    spec:
+      containers:
+        - name: zoo
+          image: digitalwonderland/zookeeper
+          ports:
+            - containerPort: 2181

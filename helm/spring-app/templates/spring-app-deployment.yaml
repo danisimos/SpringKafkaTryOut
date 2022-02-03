@@ -1,0 +1,21 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: spring-app
+spec:
+  selector:
+    matchLabels:
+      app: spring-app
+  template:
+    metadata:
+      labels:
+        app: spring-app
+    spec:
+      containers:
+        - name: spring-app
+          env:
+            - name: KAFKA_PATH
+              value: spring-app-kafka-0.spring-app-kafka-headless.default.svc.cluster.local:9093
+          image: daniilkorotaev/spring-kafka-try-out:27.0
+          ports:
+            - containerPort: 8080
