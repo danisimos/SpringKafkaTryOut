@@ -2,6 +2,8 @@ package com.orioninc.config;
 
 import com.orioninc.ex.FailedDeserializationProvider;
 import com.orioninc.models.User;
+import org.apache.kafka.clients.admin.AdminClientConfig;
+import org.apache.kafka.clients.admin.NewTopic;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringDeserializer;
@@ -13,6 +15,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 import org.springframework.kafka.annotation.EnableKafka;
 import org.springframework.kafka.config.ConcurrentKafkaListenerContainerFactory;
+import org.springframework.kafka.config.TopicBuilder;
 import org.springframework.kafka.core.*;
 import org.springframework.kafka.support.serializer.ErrorHandlingDeserializer;
 import org.springframework.kafka.support.serializer.JsonDeserializer;
@@ -26,13 +29,46 @@ import java.util.Map;
 @EnableKafka
 @PropertySource("classpath:application.properties")
 public class ApplicationConfig {
-    @Value("${kafka.path}")
-    String kafkaPath;
+    @Value("${kafka.server}")
+    String kafkaServer;
+
+    @Value("${topics.first}")
+    String topicsFirst;
+
+    @Value("${topics.second}")
+    String topicsSecond;
+
+    @Bean
+    public NewTopic firstTopic() {
+        return TopicBuilder.name(topicsFirst)
+                .partitions(3)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public NewTopic secondTopic() {
+        return TopicBuilder.name(topicsSecond)
+                .partitions(3)
+                .replicas(3)
+                .build();
+    }
+
+    @Bean
+    public KafkaAdmin kafkaAdmin() {
+        Map<String, Object> configs = new HashMap<>();
+        configs.put(AdminClientConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
+
+        KafkaAdmin kafkaAdmin = new KafkaAdmin(configs);
+        kafkaAdmin.createOrModifyTopics(firstTopic(), secondTopic());
+
+        return kafkaAdmin;
+    }
 
     @Bean
     public ConsumerFactory<String, User> consumerFactory() {
         Map<String, Object> config = new HashMap<>();
-        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPath);
+        config.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
 
         config.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
         config.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, ErrorHandlingDeserializer.class);
@@ -57,7 +93,7 @@ public class ApplicationConfig {
     @Bean
     public ProducerFactory<String, User> producerFactoryJson() {
         Map<String, Object> config = new HashMap<>();
-        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPath);
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, JsonSerializer.class);
 
@@ -67,7 +103,7 @@ public class ApplicationConfig {
     @Bean
     public ProducerFactory<String, String> producerFactoryString() {
         Map<String, Object> config = new HashMap<>();
-        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaPath);
+        config.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, kafkaServer);
         config.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         config.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
 
@@ -77,7 +113,7 @@ public class ApplicationConfig {
     @Bean
     public KafkaTemplate<String, String> kafkaTemplateString() {
         KafkaTemplate<String, String> kafkaTemplate = new KafkaTemplate<>(producerFactoryString());
-        kafkaTemplate.setDefaultTopic("t1");
+        kafkaTemplate.setDefaultTopic(topicsFirst);
 
         return kafkaTemplate;
     }
@@ -85,7 +121,7 @@ public class ApplicationConfig {
     @Bean
     public KafkaTemplate<String, User> kafkaTemplateJson() {
         KafkaTemplate<String, User> kafkaTemplate = new KafkaTemplate<>(producerFactoryJson());
-        kafkaTemplate.setDefaultTopic("t2");
+        kafkaTemplate.setDefaultTopic(topicsSecond);
 
         return kafkaTemplate;
     }
